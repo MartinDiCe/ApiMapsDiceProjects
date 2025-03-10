@@ -96,7 +96,3 @@ En entornos de desarrollo, Swagger se activa en la ruta `/swagger`, permitiendo 
 
 Si deseas mejorar esta API, siéntete libre de realizar un fork del repositorio y enviar tus propuestas mediante pull requests.  
 Recuerda mantener las convenciones de código y la estructura establecida.
-
-## Licencia
-
-MIT License
