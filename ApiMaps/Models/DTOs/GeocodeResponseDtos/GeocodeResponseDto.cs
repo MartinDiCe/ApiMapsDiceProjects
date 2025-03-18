@@ -1,19 +1,16 @@
-﻿namespace ApiMaps.Models.DTOs.GeocodeResponseDtos;
+﻿using System.Text.Json.Serialization;
 
-/// <summary>
-/// Representa la respuesta de geocodificación de un proveedor.
-/// </summary>
-public class GeocodeResponseDto
+namespace ApiMaps.Models.DTOs.GeocodeResponseDtos
 {
     /// <summary>
-    /// Estado de la respuesta (por ejemplo, "OK").
+    /// DTO que representa la respuesta principal de la API de geocodificación de Google.
     /// </summary>
-    public string Status { get; set; }
+    public class GeocodeResponseDto
+    {
+        [JsonPropertyName("status")]
+        public string Status { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Lista de resultados obtenidos.
-    /// </summary>
-    public IEnumerable<GeocodeResultDto> Results { get; set; }
-    
+        [JsonPropertyName("results")]
+        public List<GeocodeResultDto> Results { get; set; } = new();
+    }
 }
-

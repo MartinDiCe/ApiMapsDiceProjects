@@ -128,14 +128,26 @@ namespace ApiMaps.Services.GeocodingServices
                 .CreateAllProvidersAsync()
                 .SelectMany(providers =>
                 {
-                    // Filtrar solo los proveedores que tengan una prioridad incluida en 'priorityList'.
+                    // Filtrar por prioridades
                     var selectedProviders = providers
                         .Where(p => priorityList.Contains(p.Priority))
                         .ToList();
 
                     _logger.LogInfo($"[Aggregator] Se seleccionaron {selectedProviders.Count} proveedor(es).");
 
-                    // Para cada proveedor, llamamos GeocodeAddressAsync y agrupamos los resultados.
+                    // Si la lista está vacía, lanzamos excepción o devolvemos un error controlado
+                    if (!selectedProviders.Any())
+                    {
+                        // Acá decidís si lanzar una excepción para que el middleware retorne 500 / 400 / 404,
+                        // o devolver un Observable vacío con un "mensaje" especial.
+                        _logger.LogWarning(
+                            $"[Aggregator] No hay proveedores configurados con prioridades [{string.Join(", ", priorityList)}].");
+                        return Observable.Throw<IDictionary<string, IList<GeocodeResponseDto>>>(
+                            new InvalidOperationException(
+                                $"No se encontraron proveedores con prioridades: {string.Join(", ", priorityList)}.")
+                        );
+                    }
+                    
                     var observables = selectedProviders.Select(provider =>
                         provider.GeocodeAddressAsync(address)
                             .Catch<GeocodeResponseDto, Exception>(ex =>

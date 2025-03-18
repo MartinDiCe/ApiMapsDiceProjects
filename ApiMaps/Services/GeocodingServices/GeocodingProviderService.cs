@@ -63,7 +63,7 @@ namespace ApiMaps.Services.GeocodingServices
         {
             return Observable.FromAsync(async () =>
             {
-                // Construir la URL final reemplazando los marcadores de la plantilla.
+                
                 var requestUri = _endpointTemplate
                     .Replace("{address}", Uri.EscapeDataString(address))
                     .Replace("{apiKey}", _apiKey);
@@ -81,6 +81,7 @@ namespace ApiMaps.Services.GeocodingServices
                 _logger.LogInfo($"[{ProviderName}] Respuesta recibida: {content}");
 
                 var geocodeResponse = JsonSerializer.Deserialize<GeocodeResponseDto>(content);
+                
                 if (geocodeResponse == null)
                 {
                     _logger.LogError($"[{ProviderName}] No se pudo deserializar la respuesta.");
