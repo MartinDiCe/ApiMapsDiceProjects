@@ -1,41 +1,46 @@
 ﻿using System.Reactive.Linq;
+using ApiMaps.Services.ApiMapConfigServices;
 using ApiMaps.Services.LoggingServices;
-using ApiMaps.Services.ProviderConfigServices;
 
 namespace ApiMaps.Services.GeocodingServices
 {
     /// <summary>
-    /// Fábrica que crea dinámicamente instancias de <see cref="IGeocodingProvider"/> usando la configuración obtenida desde la base de datos.
+    /// Fábrica que crea dinámicamente instancias de <see cref="IGeocodingProvider"/> 
+    /// a partir de la configuración almacenada en la base de datos.
     /// </summary>
     /// <remarks>
-    /// La fábrica utiliza el servicio <see cref="IProviderConfigurationService"/> para obtener las opciones de configuración del proveedor (como el endpoint, API key, y prioridad),
-    /// luego utiliza un <see cref="IHttpClientFactory"/> para crear un cliente HTTP y finalmente instancia un <see cref="GeocodingProviderService"/>.
-    /// Se registran logs en cada paso para facilitar el seguimiento del proceso de creación.
+    /// Esta versión expone dos métodos:
+    /// 1. <see cref="CreateProviderAsync(string)"/> para crear un proveedor específico
+    ///    (por ejemplo, "GoogleMaps").
+    /// 2. <see cref="CreateAllProvidersAsync()"/> para construir instancias de todos 
+    ///    los proveedores configurados en la tabla <c>ApiMapConfigs</c>.
     /// </remarks>
     public class GeocodingProviderFactory : IGeocodingProviderFactory
     {
-        private readonly IProviderConfigurationService _providerConfigurationService;
+        private readonly IApiMapConfigService _apiMapConfigService;
+
         private readonly IHttpClientFactory _httpClientFactory;
+
         private readonly ILoggerService<GeocodingProviderService> _logger;
 
         /// <summary>
         /// Inicializa una nueva instancia de <see cref="GeocodingProviderFactory"/>.
         /// </summary>
-        /// <param name="providerConfigurationService">
-        /// Servicio que obtiene la configuración de proveedores desde la base de datos.
+        /// <param name="apiMapConfigService">
+        /// Servicio para acceder a la lista de configuraciones de proveedores en DB.
         /// </param>
         /// <param name="httpClientFactory">
         /// Fábrica para crear instancias de <see cref="HttpClient"/>.
         /// </param>
         /// <param name="logger">
-        /// Servicio de logging para el proveedor de geocodificación.
+        /// Servicio de logging para los mensajes de geocodificación.
         /// </param>
         public GeocodingProviderFactory(
-            IProviderConfigurationService providerConfigurationService,
+            IApiMapConfigService apiMapConfigService,
             IHttpClientFactory httpClientFactory,
             ILoggerService<GeocodingProviderService> logger)
         {
-            _providerConfigurationService = providerConfigurationService ?? throw new ArgumentNullException(nameof(providerConfigurationService));
+            _apiMapConfigService = apiMapConfigService ?? throw new ArgumentNullException(nameof(apiMapConfigService));
             _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
@@ -49,25 +54,72 @@ namespace ApiMaps.Services.GeocodingServices
         /// </returns>
         public IObservable<IGeocodingProvider> CreateProviderAsync(string providerName)
         {
-            _logger.LogInfo($"[Factory] Iniciando creación del proveedor de geocodificación para: {providerName}");
-            return _providerConfigurationService.GetProviderOptionsAsync(providerName)
-                .Select(options =>
+            _logger.LogInfo($"[Factory] Iniciando creación de proveedor para: {providerName}");
+
+            return _apiMapConfigService.GetAllAsync()
+                .Select(configs =>
                 {
-                    _logger.LogInfo($"[Factory] Configuración obtenida para {options.ProviderName}: Endpoint = {options.EndpointTemplate}, Priority = {options.Priority}");
+                    var config = configs.FirstOrDefault(c =>
+                        c.Proveedor.Equals(providerName, StringComparison.OrdinalIgnoreCase));
+
+                    if (config == null)
+                    {
+                        throw new InvalidOperationException(
+                            $"No se encontró configuración para el proveedor '{providerName}'.");
+                    }
+
+                    _logger.LogInfo(
+                        $"[Factory] Configuración obtenida para {config.Proveedor}: " +
+                        $"Endpoint = {config.EndPoint}, Priority = {config.Prioridad}");
+
                     var httpClient = _httpClientFactory.CreateClient();
-                    
-                    // Aquí se crea la instancia del proveedor individual usando la configuración
                     var provider = new GeocodingProviderService(
                         httpClient,
                         _logger,
-                        options.ProviderName,
-                        options.EndpointTemplate,
-                        options.ApiKey,
-                        options.Priority
+                        config.Proveedor,
+                        config.EndPoint,
+                        config.ApiKey,
+                        config.Prioridad
                     );
-                    
-                    _logger.LogInfo($"[Factory] Proveedor {options.ProviderName} creado correctamente.");
+
+                    _logger.LogInfo($"[Factory] Proveedor {providerName} creado correctamente.");
+
                     return (IGeocodingProvider)provider;
+                });
+        }
+
+        /// <summary>
+        /// Crea instancias de <see cref="IGeocodingProvider"/> para todos los proveedores
+        /// registrados en la base de datos.
+        /// </summary>
+        /// <returns>
+        /// Un <see cref="IObservable{T}"/> que emite un listado de todos los proveedores configurados.
+        /// </returns>
+        public IObservable<IEnumerable<IGeocodingProvider>> CreateAllProvidersAsync()
+        {
+            _logger.LogInfo("[Factory] Iniciando creación de TODOS los proveedores de geocodificación...");
+
+            return _apiMapConfigService.GetAllAsync()
+                .Select(configs =>
+                {
+                    var providers = new List<IGeocodingProvider>();
+
+                    foreach (var cfg in configs)
+                    {
+                        var httpClient = _httpClientFactory.CreateClient();
+                        var provider = new GeocodingProviderService(
+                            httpClient,
+                            _logger,
+                            cfg.Proveedor,
+                            cfg.EndPoint,
+                            cfg.ApiKey,
+                            cfg.Prioridad
+                        );
+                        providers.Add(provider);
+                    }
+
+                    _logger.LogInfo($"[Factory] Se crearon {providers.Count} proveedores en total.");
+                    return (IEnumerable<IGeocodingProvider>)providers;
                 });
         }
     }
