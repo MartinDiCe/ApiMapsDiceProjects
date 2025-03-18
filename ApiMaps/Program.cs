@@ -6,12 +6,16 @@ using ApiMaps.Data;
 using ApiMaps.Exceptions;
 using ApiMaps.Helpers;
 using ApiMaps.Middleware;
+using ApiMaps.Models.Repositories.ApiMapConfigRepositories;
 using ApiMaps.Models.Repositories.ApiTraceRepositories;
 using ApiMaps.Models.Repositories.ParameterRepositories;
+using ApiMaps.Services.ApiMapConfigServices;
 using ApiMaps.Services.ApiTraceServices;
 using ApiMaps.Services.AuditServices;
+using ApiMaps.Services.GeocodingServices;
 using ApiMaps.Services.LoggingServices;
 using ApiMaps.Services.ParameterServices;
+using ApiMaps.Services.ProviderConfigServices;
 using ApiMaps.Traces;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -46,14 +50,31 @@ builder.Services.AddHttpContextAccessor();
 // ---------------------------------------------------------
 // 4) Registrar servicios y utilidades personalizadas
 // ---------------------------------------------------------
+builder.Services.AddHttpClient();
 builder.Services.AddScoped<IServiceExecutor, ReactiveServiceExecutor>();
 builder.Services.AddScoped<AuditEntitiesService>();
 builder.Services.AddScoped(typeof(ILoggerService<>), typeof(LoggerService<>));
 builder.Services.AddScoped<IParameterRepository, ParameterRepository>();
 builder.Services.AddScoped<IApiTraceRepository, ApiTraceRepository>();
+builder.Services.AddScoped<IApiMapConfigRepository, ApiMapConfigRepository>();
 builder.Services.AddScoped<IAuditoriaService, AuditoriaService>();
 builder.Services.AddScoped<IParameterService, ParameterService>();
 builder.Services.AddScoped<IApiTraceService, ApiTraceService>();
+builder.Services.AddScoped<IApiMapConfigService, ApiMapConfigService>();
+builder.Services.AddScoped<IProviderConfigurationService, ProviderConfigurationService>();
+
+// Registrar la fábrica para crear dinámicamente proveedores de geocodificación.
+// La fábrica se encarga de obtener la configuración desde la base de datos y construir las instancias
+// de GeocodingProviderService con los valores correspondientes (endpoint, apiKey, priority, etc.).
+builder.Services.AddScoped<IGeocodingProviderFactory, GeocodingProviderFactory>();
+
+// Registrar el agregador de proveedores de geocodificación.
+// Este servicio se encarga de combinar los resultados de los proveedores individuales (ya creados)
+// según la prioridad o por proveedor.
+builder.Services.AddScoped<IGeocodingProviderAggregatorService, GeocodingProviderAggregatorService>();
+
+// Registrar el servicio central de geocodificación, que orquesta las operaciones invocando al agregador.
+builder.Services.AddScoped<IGeocodeService, GeocodeService>();
 
 builder.Services.AddMemoryCache();
 
@@ -72,6 +93,7 @@ else
     builder.Logging.AddDebug();
     builder.Logging.SetMinimumLevel(LogLevel.Debug);
 }
+
 
 var app = builder.Build();
 

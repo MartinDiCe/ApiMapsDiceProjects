@@ -30,6 +30,11 @@ namespace ApiMaps.Data
         public DbSet<ApiTrace> ApiTraces { get; set; } = null!;
         
         /// <summary>
+        /// Conjunto de Configuraciones de Apis de Mapas <see cref="ApiMapConfigs"/>.
+        /// </summary>
+        public DbSet<ApiMapConfig> ApiMapConfigs { get; set; } = null!;
+        
+        /// <summary>
         /// Conjunto de datos para la entidad <see cref="ServicioEjecucion"/>.
         /// </summary>
         public DbSet<ServicioEjecucion> ServicioEjecucion { get; set; } = null!;
