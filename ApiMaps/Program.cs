@@ -13,8 +13,10 @@ using ApiMaps.Services.ApiMapConfigServices;
 using ApiMaps.Services.ApiTraceServices;
 using ApiMaps.Services.AuditServices;
 using ApiMaps.Services.GeocodingServices;
+using ApiMaps.Services.IAServices;
 using ApiMaps.Services.LoggingServices;
 using ApiMaps.Services.ParameterServices;
+using ApiMaps.Services.PlacesServices;
 using ApiMaps.Services.ProviderConfigServices;
 using ApiMaps.Traces;
 
@@ -76,6 +78,16 @@ builder.Services.AddScoped<IGeocodingProviderAggregatorService, GeocodingProvide
 // Registrar el servicio central de geocodificación, que orquesta las operaciones invocando al agregador.
 builder.Services.AddScoped<IGeocodeService, GeocodeService>();
 
+// Registrar el servicio de IA.
+builder.Services.AddScoped<IIaService, IaService>();
+
+// Registrar el servicio de Google Places.
+builder.Services.AddScoped<IPlacesService, PlacesService>();
+
+//Refinamiento de resultados
+builder.Services.AddScoped<IRefinedGeocodeOrchestratorService, RefinedGeocodeOrchestratorService>();
+
+
 builder.Services.AddMemoryCache();
 
 // ---------------------------------------------------------
@@ -106,7 +118,7 @@ DatabaseInitializer.Initialize(app.Services);
 // 8) Pipeline de Middlewares
 // ---------------------------------------------------------
 
-// En entornos de desarrollo, usar Swagger y el middleware de logging de request/response.
+// En entornos de desarrollo, usar Swagger y el middleware de logging de request, response.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
